@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @DiscriminatorColumn(name = "type")
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
         @JsonSubTypes.Type(value = Dog.class, name = Animal.ANIMAL_TYPE_DOG),
         @JsonSubTypes.Type(value = Human.class, name = Animal.ANIMAL_TYPE_HUMAN)
