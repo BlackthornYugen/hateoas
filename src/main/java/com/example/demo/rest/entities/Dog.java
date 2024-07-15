@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.example.demo.rest.entities;
 
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
@@ -7,7 +7,7 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
-import static com.example.demo.Animal.ANIMAL_TYPE_DOG;
+import static com.example.demo.rest.entities.Animal.ANIMAL_TYPE_DOG;
 
 @Entity
 @EqualsAndHashCode(callSuper = true)
@@ -19,8 +19,8 @@ public class Dog extends Animal {
     private boolean isChipped;
 
     @Builder
-    public Dog(Long id, String name, byte[] signature, String breed, boolean isChipped) {
-        super(id, name, signature, ANIMAL_TYPE_DOG);
+    private Dog(Long id, String name, byte[] dna, String breed, boolean isChipped) {
+        super(id, name, dna, ANIMAL_TYPE_DOG);
         this.breed = breed;
         this.isChipped = isChipped;
     }

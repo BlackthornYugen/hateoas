@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.example.demo.rest.entities;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;

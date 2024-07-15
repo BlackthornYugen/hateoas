@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.example.demo.rest.entities;
 
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-import static com.example.demo.Animal.ANIMAL_TYPE_HUMAN;
+import static com.example.demo.rest.entities.Animal.ANIMAL_TYPE_HUMAN;
 
 @Entity
 @EqualsAndHashCode(callSuper = true)
@@ -23,7 +23,7 @@ public class Human extends Animal {
     private List<Passport> passports;
 
     @Builder
-    Human(Long id, String name, byte[] dna, List<Passport> passports) {
+    private Human(Long id, String name, byte[] dna, List<Passport> passports) {
         super(id, name, dna, ANIMAL_TYPE_HUMAN);
         this.passports = passports;
     }

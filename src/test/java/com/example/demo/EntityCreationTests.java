@@ -1,5 +1,8 @@
 package com.example.demo;
 
+import com.example.demo.rest.entities.Dog;
+import com.example.demo.rest.entities.Human;
+import com.example.demo.rest.entities.Passport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -49,15 +52,19 @@ class EntityCreationTests {
 
     @Test
     void createDog() {
-        Dog dog = new Dog(null, "Buddy", new byte[]{}, "Labrador", true);
+        Dog dog = Dog.builder().name("Buddy").breed("Labrador").isChipped(true).dna(new byte[]{3,4,5}).build();
         ResponseEntity<Dog> response = restTemplate.postForEntity(baseUrl("/animals"), dog, Dog.class);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        // Additional assertions to verify the Dog entity
+        Dog createdDog = response.getBody();
+        assertNotNull(createdDog);
+        assertNotNull(createdDog.getId());
+        assertArrayEquals(dog.getDna(), createdDog.getDna());
+        assertEquals(dog.getName(), createdDog.getName());
     }
 
     @Test
     void createHuman() {
-        Human human = new Human(null, "John Doe", new byte[]{}, null);
+        Human human = Human.builder().name("John Doe").dna(new byte[]{1,2,3}).build();
         ResponseEntity<Human> response = restTemplate.postForEntity(baseUrl("/animals"), human, Human.class);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         // Additional assertions to verify the Human entity
