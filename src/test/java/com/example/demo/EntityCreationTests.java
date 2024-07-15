@@ -40,7 +40,7 @@ class EntityCreationTests {
         // Create Passport
         Passport passport = Passport.builder().country("Canada").expirationYear(2027).issueYear(2017).build();
         ResponseEntity<Passport> createResponse = restTemplate.postForEntity(baseUrl("/passports"), passport, Passport.class);
-        assertEquals(HttpStatus.CREATED, createResponse.getStatusCode());
+        assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         Passport createdPassport = createResponse.getBody();
         assertNotNull(createdPassport);
         assertNotNull(createdPassport.getId());
@@ -52,7 +52,7 @@ class EntityCreationTests {
                 null,
                 new ParameterizedTypeReference<CollectionModel<EntityModel<Passport>>>() {}
         );
-        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(listContainsId(response, createdPassport.getId())).isTrue();
 
         // Get Passport by ID and verify
@@ -62,26 +62,23 @@ class EntityCreationTests {
                 null,
                 new ParameterizedTypeReference<EntityModel<Passport>>() {}
         );
-        assertEquals(HttpStatus.OK, getByIdResponse.getStatusCode());
-        assertEquals(createdPassport.getId(), getId(getByIdResponse.getBody().getContent()));
-        assertThat(getByIdResponse.getBody())
-                .as("Response body should not be null and check self link syntax")
-                .isNotNull()
-                .extracting(body -> body.getLink("self"))
-                .matches(link -> link.get().getHref().matches( "^.*/passports/\\d+$"),
-                        "Self link should use /passports/ endpoint");
+        assertThat(getByIdResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(getId(getByIdResponse.getBody().getContent())).isEqualTo(createdPassport.getId());
+        assertThat(getByIdResponse.getBody()).isNotNull()
+                .extracting(body -> body.getLink("self").orElseThrow())
+                .matches(link -> link.getHref().matches( "^.*/passports/\\d+$"), "Invalid Path");
     }
 
     @Test
     void createDog() {
         Dog dog = Dog.builder().name("Buddy").breed("Labrador").isChipped(true).dna(new byte[]{3,4,5}).build();
         ResponseEntity<Dog> response = restTemplate.postForEntity(baseUrl("/animals"), dog, Dog.class);
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        Dog createdDog = response.getBody();
-        assertNotNull(createdDog);
-        assertNotNull(createdDog.getId());
-        assertArrayEquals(dog.getDna(), createdDog.getDna());
-        assertEquals(dog.getName(), createdDog.getName());
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        var createdDog = assertThat(response.getBody()).isNotNull();
+        createdDog.extracting(Animal::getDna).isEqualTo(dog.getDna());
+        createdDog.extracting(Animal::getName).isEqualTo(dog.getName());
+        createdDog.extracting(Animal::getId).isNotNull().matches(id -> id > 0, "ID should be set by the server");
 
         var getDogByIdResponse = restTemplate.exchange(
                 baseUrl("/animals/" + getId(response.getBody())),
@@ -89,13 +86,10 @@ class EntityCreationTests {
                 null,
                 new ParameterizedTypeReference<EntityModel<Animal>>() {}
         );
-        assertEquals(HttpStatus.OK, getDogByIdResponse.getStatusCode());
-        assertThat(getDogByIdResponse.getBody())
-                .as("Response body should not be null and check self link syntax")
-                .isNotNull()
-                .extracting(body -> body.getLink("self"))
-                .matches(link -> link.get().getHref().matches( "^.*/animals/\\d+$"),
-                        "Self link should use /animals/ endpoint");
+        assertThat(getDogByIdResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(getDogByIdResponse.getBody()).isNotNull()
+                .extracting(body -> body.getLink("self").orElseThrow())
+                .matches(link -> link.getHref().matches( "^.*/animals/\\d+$"), "Invalid Path");
     }
 
     @Test
@@ -154,21 +148,15 @@ class EntityCreationTests {
 
             assertions.assertThat(getByIdResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertions.assertThat(getId(getByIdResponse)).isEqualTo(getId(createHumanResponse.getBody()));
-            assertions.assertThat(getByIdResponse.getBody())
-                    .as("Response body should not be null and check self link syntax")
-                    .isNotNull()
-                    .extracting(body -> body.getLink("self"))
-                    .matches(link -> link.get().getHref().matches( "^.*/animals/\\d+$"),
-                            "Self link should use /animals/ endpoint");
+            assertions.assertThat(getByIdResponse.getBody()).isNotNull()
+                    .extracting(body -> body.getLink("self").orElseThrow())
+                    .matches(link -> link.getHref().matches( "^.*/animals/\\d+$"), "Invalid Path");
 
             assertions.assertThat(getPassportByIdResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertions.assertThat(getId(getPassportByIdResponse.getBody())).isEqualTo(getId(createPassportResponse));
-            assertions.assertThat(getPassportByIdResponse.getBody())
-                    .as("Response body should not be null and check self link syntax")
-                    .isNotNull()
-                    .extracting(body -> body.getLink("self"))
-                    .matches(link -> link.get().getHref().matches( "^.*/passports/\\d+$"),
-                            "Self link should use /passports/ endpoint");
+            assertions.assertThat(getPassportByIdResponse.getBody()).isNotNull()
+                    .extracting(body -> body.getLink("self").orElseThrow())
+                    .matches(link -> link.getHref().matches( "^.*/passports/\\d+$"), "Invalid Path");
 
             assertions.assertThat(getPassportByHumanResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertions.assertThat(listContainsId(getPassportByHumanResponse, getId(createPassportResponse.getBody()))).isTrue();
