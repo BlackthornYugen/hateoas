@@ -12,6 +12,7 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,7 +36,7 @@ class EntityCreationTests {
     }
 
     @Test
-    void createAndVerifyPassport() {
+    void createPassport() {
         // Create Passport
         Passport passport = Passport.builder().country("Canada").expirationYear(2027).issueYear(2017).build();
         ResponseEntity<Passport> createResponse = restTemplate.postForEntity(baseUrl("/passports"), passport, Passport.class);
@@ -49,15 +50,26 @@ class EntityCreationTests {
                 baseUrl("/passports"),
                 HttpMethod.GET,
                 null,
-                new ParameterizedTypeReference<CollectionModel<Passport>>() {}
+                new ParameterizedTypeReference<CollectionModel<EntityModel<Passport>>>() {}
         );
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertThat(listContainsId(response, createdPassport.getId())).isTrue();
 
         // Get Passport by ID and verify
-        ResponseEntity<Passport> getByIdResponse = restTemplate.getForEntity(baseUrl("/passports/" + createdPassport.getId()), Passport.class);
+        var getByIdResponse = restTemplate.exchange(
+                baseUrl("/passports/" + createdPassport.getId()),
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<EntityModel<Passport>>() {}
+        );
         assertEquals(HttpStatus.OK, getByIdResponse.getStatusCode());
-        assertEquals(createdPassport.getId(), getId(getByIdResponse));
+        assertEquals(createdPassport.getId(), getId(getByIdResponse.getBody().getContent()));
+        assertThat(getByIdResponse.getBody())
+                .as("Response body should not be null and check self link syntax")
+                .isNotNull()
+                .extracting(body -> body.getLink("self"))
+                .matches(link -> link.get().getHref().matches( "^.*/passports/\\d+$"),
+                        "Self link should use /passports/ endpoint");
     }
 
     @Test
@@ -70,6 +82,20 @@ class EntityCreationTests {
         assertNotNull(createdDog.getId());
         assertArrayEquals(dog.getDna(), createdDog.getDna());
         assertEquals(dog.getName(), createdDog.getName());
+
+        var getDogByIdResponse = restTemplate.exchange(
+                baseUrl("/animals/" + getId(response.getBody())),
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<EntityModel<Animal>>() {}
+        );
+        assertEquals(HttpStatus.OK, getDogByIdResponse.getStatusCode());
+        assertThat(getDogByIdResponse.getBody())
+                .as("Response body should not be null and check self link syntax")
+                .isNotNull()
+                .extracting(body -> body.getLink("self"))
+                .matches(link -> link.get().getHref().matches( "^.*/animals/\\d+$"),
+                        "Self link should use /animals/ endpoint");
     }
 
     @Test
@@ -83,32 +109,37 @@ class EntityCreationTests {
                 baseUrl("/passports"),
                 HttpMethod.GET,
                 null,
-                new ParameterizedTypeReference<CollectionModel<Passport>>() {}
+                new ParameterizedTypeReference<CollectionModel<EntityModel<Passport>>>() {}
         );
         var listHumanResponse = restTemplate.exchange(
                 baseUrl("/animals"),
                 HttpMethod.GET,
                 null,
-                new ParameterizedTypeReference<CollectionModel<Animal>>() {}
+                new ParameterizedTypeReference<CollectionModel<EntityModel<Animal>>>() {}
         );
-        var getByIdResponse = restTemplate.getForEntity(baseUrl("/animals/" + getId(createHumanResponse)), Human.class);
-        var getPassportByIdResponse = restTemplate.exchange(
-                baseUrl("/passports/" + getId(createPassportResponse)),
+        var getByIdResponse = restTemplate.exchange(
+                baseUrl("/animals/" + getId(createHumanResponse.getBody())),
                 HttpMethod.GET,
                 null,
-                new ParameterizedTypeReference<Passport>() {}
+                new ParameterizedTypeReference<EntityModel<Human>>() {}
+        );
+        var getPassportByIdResponse = restTemplate.exchange(
+                baseUrl("/passports/" + getId(createPassportResponse.getBody())),
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<EntityModel<Passport>>() {}
         );
         var getPassportByHumanResponse = restTemplate.exchange(
-                baseUrl("/animals/" + getId(createHumanResponse) + "/passports"),
+                baseUrl("/animals/" + getId(createHumanResponse.getBody()) + "/passports"),
                 HttpMethod.GET,
                 null,
-                new ParameterizedTypeReference<CollectionModel<Passport>>() {}
+                new ParameterizedTypeReference<CollectionModel<EntityModel<Passport>>>() {}
         );
         var getHumanByPassportResponse = restTemplate.exchange(
-                baseUrl("/passports/" + getId(createPassportResponse) + "/owner"),
+                baseUrl("/passports/" + getId(createPassportResponse.getBody()) + "/owner"),
                 HttpMethod.GET,
                 null,
-                new ParameterizedTypeReference<Human>() {}
+                new ParameterizedTypeReference<EntityModel<Human>>() {}
         );
 
         SoftAssertions.assertSoftly(assertions -> {
@@ -116,31 +147,43 @@ class EntityCreationTests {
             assertions.assertThat(createHumanResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
             assertions.assertThat(listPassportResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertions.assertThat(listContainsId(listPassportResponse, getId(createPassportResponse))).isTrue();
+            assertions.assertThat(listContainsId(listPassportResponse, getId(createPassportResponse.getBody()))).isTrue();
 
             assertions.assertThat(listHumanResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertions.assertThat(listContainsId(listHumanResponse, getId(createHumanResponse))).isTrue();
+            assertions.assertThat(listContainsId(listHumanResponse, getId(createHumanResponse.getBody()))).isTrue();
 
             assertions.assertThat(getByIdResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertions.assertThat(getId(getByIdResponse)).isEqualTo(getId(createHumanResponse));
+            assertions.assertThat(getId(getByIdResponse)).isEqualTo(getId(createHumanResponse.getBody()));
+            assertions.assertThat(getByIdResponse.getBody())
+                    .as("Response body should not be null and check self link syntax")
+                    .isNotNull()
+                    .extracting(body -> body.getLink("self"))
+                    .matches(link -> link.get().getHref().matches( "^.*/animals/\\d+$"),
+                            "Self link should use /animals/ endpoint");
 
             assertions.assertThat(getPassportByIdResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertions.assertThat(getId(getPassportByIdResponse)).isEqualTo(getId(createPassportResponse));
+            assertions.assertThat(getId(getPassportByIdResponse.getBody())).isEqualTo(getId(createPassportResponse));
+            assertions.assertThat(getPassportByIdResponse.getBody())
+                    .as("Response body should not be null and check self link syntax")
+                    .isNotNull()
+                    .extracting(body -> body.getLink("self"))
+                    .matches(link -> link.get().getHref().matches( "^.*/passports/\\d+$"),
+                            "Self link should use /passports/ endpoint");
 
             assertions.assertThat(getPassportByHumanResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertions.assertThat(listContainsId(getPassportByHumanResponse, getId(createPassportResponse))).isTrue();
+            assertions.assertThat(listContainsId(getPassportByHumanResponse, getId(createPassportResponse.getBody()))).isTrue();
 
             assertions.assertThat(getHumanByPassportResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertions.assertThat(getId(getHumanByPassportResponse)).isEqualTo(getId(createHumanResponse));
+            assertions.assertThat(getId(getHumanByPassportResponse.getBody())).isEqualTo(getId(createHumanResponse.getBody()));
         });
     }
 
-    private static long getId(ResponseEntity<?> getHumanByPassportResponse) {
-        if (getHumanByPassportResponse.getBody() instanceof Human)
-            return ((Human) getHumanByPassportResponse.getBody()).getId();
+    private static <T> long getId(T responseEntity) {
+        if (responseEntity instanceof Animal)
+            return ((Animal) responseEntity).getId();
 
-        if (getHumanByPassportResponse.getBody() instanceof Passport)
-            return ((Passport) getHumanByPassportResponse.getBody()).getId();
+        if (responseEntity instanceof Passport)
+            return ((Passport) responseEntity).getId();
 
         return -1;
     }
