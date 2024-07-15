@@ -1,5 +1,6 @@
 package com.example.demo;
 
+import com.example.demo.rest.entities.Animal;
 import com.example.demo.rest.entities.Dog;
 import com.example.demo.rest.entities.Human;
 import com.example.demo.rest.entities.Passport;
@@ -9,7 +10,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.hateoas.CollectionModel;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -42,7 +45,12 @@ class EntityCreationTests {
         assertNotNull(createdPassport.getId());
 
         // List Passports and verify creation
-        var response = restTemplate.getForEntity(baseUrl("/passports"), CollectionModel.class);
+        var response = restTemplate.exchange(
+                baseUrl("/passports"),
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<CollectionModel<Passport>>() {}
+        );
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertThat(listContainsId(response, createdPassport.getId())).isTrue();
 
@@ -71,12 +79,37 @@ class EntityCreationTests {
         var human = Human.builder().name("Jane Doe").dna(new byte[]{1,2,3}).passports(List.of(passport)).build();
         var createHumanResponse = restTemplate.postForEntity(baseUrl("/animals"), human, Human.class);
 
-        var listPassportResponse = restTemplate.getForEntity(baseUrl("/passports"), CollectionModel.class);
-        var listHumanResponse = restTemplate.getForEntity(baseUrl("/animals"), CollectionModel.class);
+        var listPassportResponse = restTemplate.exchange(
+                baseUrl("/passports"),
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<CollectionModel<Passport>>() {}
+        );
+        var listHumanResponse = restTemplate.exchange(
+                baseUrl("/animals"),
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<CollectionModel<Animal>>() {}
+        );
         var getByIdResponse = restTemplate.getForEntity(baseUrl("/animals/" + getId(createHumanResponse)), Human.class);
-        var getPassportByIdResponse = restTemplate.getForEntity(baseUrl("/passports/" + getId(createPassportResponse)), Passport.class);
-        var getPassportByHumanResponse = restTemplate.getForEntity(baseUrl("/animals/" + getId(createHumanResponse) + "/passports"), CollectionModel.class);
-        var getHumanByPassportResponse = restTemplate.getForEntity(baseUrl("/passports/" + getId(createPassportResponse) + "/owner"), Human.class);
+        var getPassportByIdResponse = restTemplate.exchange(
+                baseUrl("/passports/" + getId(createPassportResponse)),
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<Passport>() {}
+        );
+        var getPassportByHumanResponse = restTemplate.exchange(
+                baseUrl("/animals/" + getId(createHumanResponse) + "/passports"),
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<CollectionModel<Passport>>() {}
+        );
+        var getHumanByPassportResponse = restTemplate.exchange(
+                baseUrl("/passports/" + getId(createPassportResponse) + "/owner"),
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<Human>() {}
+        );
 
         SoftAssertions.assertSoftly(assertions -> {
             assertions.assertThat(createPassportResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -112,7 +145,7 @@ class EntityCreationTests {
         return -1;
     }
 
-    public static boolean listContainsId(ResponseEntity<CollectionModel> response, Long id) {
+    public static <T> boolean listContainsId(ResponseEntity<CollectionModel<T>> response, Long id) {
         if (response.getBody() == null) {
             return false;
         }
