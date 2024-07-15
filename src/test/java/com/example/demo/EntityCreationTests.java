@@ -63,8 +63,12 @@ class EntityCreationTests {
                 new ParameterizedTypeReference<EntityModel<Passport>>() {}
         );
         assertThat(getByIdResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(getId(getByIdResponse.getBody().getContent())).isEqualTo(createdPassport.getId());
-        assertThat(getByIdResponse.getBody()).isNotNull()
+        var entityModelObjectAssert = assertThat(getByIdResponse.getBody()).isNotNull();
+        entityModelObjectAssert
+                .extracting(EntityModel::getContent)
+                .extracting(Passport::getId)
+                .isEqualTo(createdPassport.getId());
+        entityModelObjectAssert
                 .extracting(body -> body.getLink("self").orElseThrow())
                 .matches(link -> link.getHref().matches( "^.*/passports/\\d+$"), "Invalid Path");
     }
